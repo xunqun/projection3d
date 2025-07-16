@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:projection3d/my_canvas_widget.dart';
 
+import 'projection3d.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -118,7 +120,16 @@ class _MyHomePageState extends State<MyHomePage> {
             SizedBox(
               width: 400,
               height: 400,
-              child: MyCanvasWidget())
+              child: MyCanvasWidget(
+                polyline: [
+                  GeoPoint(25.0330, 121.5654), // x
+                  GeoPoint(25.034, 121.5620), // y
+                  GeoPoint(25.0388, 121.5567), // z
+                ],
+                camera: GeoPoint(25.0330, 121.5654, 50),
+                lookAt: GeoPoint(25.034, 121.5620),
+              ),
+              )
           ],
         ),
       ),

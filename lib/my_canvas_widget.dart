@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:projection3d/projection3d.dart';
 
 class MyCanvasWidget extends StatelessWidget {
+  final List<GeoPoint> polyline;
+  final GeoPoint camera;
+  final GeoPoint lookAt;
+
+  const MyCanvasWidget({
+    Key? key,
+    required this.polyline,
+    required this.camera,
+    required this.lookAt,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    final polyline = [
-      GeoPoint(20.0, 20.0),
-      GeoPoint(20.01, 20.01),
-      GeoPoint(20.04, 20.02),
-    ];
-
-
-    final camera = GeoPoint(19.999, 19.999, 100); // 上方攝影機
-    final lookAt = polyline[0];
-
     final painter = _MyPainter(
       projectCanvas: ThreeDProjectCanvas(
         camera: camera,
@@ -32,9 +33,14 @@ class _MyPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 使用 clipRect 限制繪圖區域不超出 widget
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+
     // 填滿黑色底色
     final backgroundPaint = Paint()
       ..color = Colors.black
+      ..isAntiAlias = true
       ..style = PaintingStyle.fill;
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
@@ -43,25 +49,19 @@ class _MyPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     projectCanvas.draw(canvas, paint);
 
-    // 在中央底部繪製目前位置標記
+    // ��中央底部繪製目前位置三角形標記
     final markerPaint = Paint()
       ..color = Colors.red
       ..style = PaintingStyle.fill;
-    const markerRadius = 8.0;
+    const markerRadius = 24.0;
     final markerCenter = Offset(size.width / 2, size.height - markerRadius - 10);
-    canvas.drawCircle(markerCenter, markerRadius, markerPaint);
-    // 可選：加上文字
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: '目前位置',
-        style: TextStyle(color: Colors.white, fontSize: 14),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter.paint(
-      canvas,
-      Offset(markerCenter.dx - textPainter.width / 2, markerCenter.dy + markerRadius + 2),
-    );
+    final trianglePath = Path()
+      ..moveTo(markerCenter.dx, markerCenter.dy - markerRadius)
+      ..lineTo(markerCenter.dx - markerRadius, markerCenter.dy + markerRadius /5)
+      ..lineTo(markerCenter.dx + markerRadius, markerCenter.dy + markerRadius /5)
+      ..close();
+    canvas.drawPath(trianglePath, markerPaint);
+    canvas.restore();
   }
 
   @override
