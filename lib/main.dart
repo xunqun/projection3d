@@ -122,12 +122,15 @@ class _MyHomePageState extends State<MyHomePage> {
               height: 400,
               child: MyCanvasWidget(
                 polyline: [
-                  GeoPoint(25.0330, 121.5654), // x
-                  GeoPoint(25.034, 121.5620), // y
-                  GeoPoint(25.0388, 121.5567), // z
+                  GeoPoint(25.0330, 121.5654),
+                  GeoPoint(25.034, 121.5640),
+                  GeoPoint(25.034, 121.5620),
+                  GeoPoint(25.035, 121.5600),
+                  GeoPoint(25.036, 121.5600),
+                  GeoPoint(25.0388, 121.5567),
                 ],
-                camera: GeoPoint(25.0330, 121.5654, 50),
-                lookAt: GeoPoint(25.034, 121.5620),
+                camera: GeoPoint(25.0330, 121.5654, 30),
+                lookAt: GeoPoint(25.034, 121.5640),
               ),
               )
           ],
