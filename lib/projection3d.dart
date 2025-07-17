@@ -2,7 +2,10 @@ import 'dart:math';
 import 'dart:ui';
 
 class GeoPoint {
-  final double lat, lon, alt;
+  double lat = 0; // 緯度
+  double lon = 0; // 經度
+  double alt = 0; // 海拔高度，默認為 0
+
   GeoPoint(this.lat, this.lon, [this.alt = 0]);
 
   List<double> toECEF() {
@@ -32,10 +35,11 @@ class ThreeDProjectCanvas {
   });
 
   void draw(Canvas canvas, Paint paint) {
+    final camPos = camera.toECEF();
+    final heading = _normalize(_sub(lookAt.toECEF(), camPos));
     final viewMatrix = _lookAt(camera.toECEF(), lookAt.toECEF());
     if (polyline.length < 2) return;
 
-    // 計算每個點的平均法線
     final normals = <List<double>>[];
     for (int i = 0; i < polyline.length; i++) {
       List<double> n;
@@ -69,6 +73,13 @@ class ThreeDProjectCanvas {
 
     // 畫每一段
     for (int i = 0; i < polyline.length - 1; i++) {
+
+      final p0 = polyline[i].toECEF();
+      final p1 = polyline[i + 1].toECEF();
+      final mid = [(p0[0]+p1[0])/2, (p0[1]+p1[1])/2, (p0[2]+p1[2])/2];
+      final toSegment = _normalize(_sub(mid, camPos));
+      if (_dot(heading, toSegment) < 0) continue; // 在反面，跳過
+
       final quad = [
         left[i],
         right[i],

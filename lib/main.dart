@@ -73,6 +73,15 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  var points = [
+    GeoPoint(25.0330, 121.5654),
+    GeoPoint(25.034, 121.5640),
+    GeoPoint(25.034, 121.5620),
+    GeoPoint(25.035, 121.5600),
+    GeoPoint(25.036, 121.5600),
+    GeoPoint(25.0388, 121.5567),
+  ];
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -121,16 +130,9 @@ class _MyHomePageState extends State<MyHomePage> {
               width: 400,
               height: 400,
               child: Canvas3dWidget(
-                polyline: [
-                  GeoPoint(25.0330, 121.5654),
-                  GeoPoint(25.034, 121.5640),
-                  GeoPoint(25.034, 121.5620),
-                  GeoPoint(25.035, 121.5600),
-                  GeoPoint(25.036, 121.5600),
-                  GeoPoint(25.0388, 121.5567),
-                ],
-                camera: GeoPoint(25.0330, 121.5654, 30),
-                lookAt: GeoPoint(25.034, 121.5640),
+                polyline: points,
+                camera: GeoPoint(25.034, 121.5620, 100),
+                lookAt: GeoPoint(25.0356, 121.5600),
               ),
               )
           ],

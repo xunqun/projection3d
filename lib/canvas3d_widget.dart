@@ -44,18 +44,19 @@ class _MyPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 使用 clipRect 限制繪圖區域不超出 widget
     canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    // canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
     // 填滿黑色底色
     final backgroundPaint = Paint()
       ..color = Colors.black
-      ..isAntiAlias = true
       ..style = PaintingStyle.fill;
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
     final paint = Paint()
       ..color = Colors.amber
-      ..style = PaintingStyle.fill;
+      ..isAntiAlias = false
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
     projectCanvas.draw(canvas, paint);
 
     // ��中央底部繪製目前位置三角形標記
@@ -69,6 +70,7 @@ class _MyPainter extends CustomPainter {
       ..lineTo(markerCenter.dx - markerRadius, markerCenter.dy + markerRadius /5)
       ..lineTo(markerCenter.dx + markerRadius, markerCenter.dy + markerRadius /5)
       ..close();
+    // check if the path is out of screen bounds
     canvas.drawPath(trianglePath, markerPaint);
     canvas.restore();
 
