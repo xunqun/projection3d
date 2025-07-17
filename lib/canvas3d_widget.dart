@@ -40,7 +40,7 @@ class _MyPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 使用 clipRect 限制繪圖區域不超出 widget
     canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    // canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
     // 填滿黑色底色
     final backgroundPaint = Paint()

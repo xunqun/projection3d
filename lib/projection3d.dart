@@ -37,8 +37,7 @@ class ThreeDProjectCanvas {
   });
 
   void draw(Canvas canvas, Paint paint) {
-    final camPos = camera.toECEF();
-    final heading = _normalize(_sub(lookAt.toECEF(), camPos));
+
     final viewMatrix = _lookAt(camera.toECEF(), lookAt.toECEF());
     if (polyline.length < 2) return;
 
@@ -73,6 +72,11 @@ class ThreeDProjectCanvas {
       right.add(_sub(polyline[i].toECEF(), offset));
     }
 
+    // 建立 viewport Path
+    final viewportPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, screenSize.width, screenSize.height));
+
+
     // 畫每一段
     for (int i = 0; i < polyline.length - 1; i++) {
 
@@ -98,7 +102,13 @@ class ThreeDProjectCanvas {
       }
 
       path.close();
-      canvas.drawPath(path, paint);
+      // 與 viewport 做相交
+      final clippedPath = Path.combine(
+        PathOperation.intersect,
+        path,
+        viewportPath,
+      );
+      canvas.drawPath(clippedPath, paint);
     }
   }
 

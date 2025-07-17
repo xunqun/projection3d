@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:projection3d/canvas3d_widget.dart';
 
@@ -73,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  var points = [
+  var polyline = [
     GeoPoint(25.0330, 121.5654),
     GeoPoint(25.034, 121.5640),
     GeoPoint(25.034, 121.5620),
@@ -82,14 +83,59 @@ class _MyHomePageState extends State<MyHomePage> {
     GeoPoint(25.0388, 121.5567),
   ];
 
+  var camera = GeoPoint(25.0342, 121.5700, 100);
+  var lookAt = GeoPoint(25.0388, 121.5567);
+
+  // 計算camera到polyline線段的最近點
+  GeoPoint? closestPointOnPolyline(List<GeoPoint> polyline, GeoPoint camera) {
+    double minDist = double.infinity;
+    GeoPoint? closest;
+    int closestSegmentIdx = 0;
+    double metersPerDegreeLat = 111320.0;
+    List<double> cam = camera.toECEF();
+    for (int i = 0; i < polyline.length - 1; i++) {
+      List<double> a = polyline[i].toECEF();
+      List<double> b = polyline[i + 1].toECEF();
+      // 線段ab
+      List<double> ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      List<double> ac = [cam[0] - a[0], cam[1] - a[1], cam[2] - a[2]];
+      double abLen2 = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
+      double t = abLen2 == 0 ? 0 : (ab[0] * ac[0] + ab[1] * ac[1] + ab[2] * ac[2]) / abLen2;
+      t = t.clamp(0, 1);
+      List<double> proj = [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t];
+      double dist = sqrt(pow(cam[0] - proj[0], 2) + pow(cam[1] - proj[1], 2) + pow(cam[2] - proj[2], 2));
+      if (dist < minDist) {
+        minDist = dist;
+        closest = GeoPoint(
+          polyline[i].lat + (polyline[i + 1].lat - polyline[i].lat) * t,
+          polyline[i].lon + (polyline[i + 1].lon - polyline[i].lon) * t,
+          polyline[i].alt + (polyline[i + 1].alt - polyline[i].alt) * t,
+        );
+        closestSegmentIdx = i;
+      }
+    }
+    // 返回最近點和其所在segment index
+    return closest;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    // 找到最近點
+    GeoPoint? closest = closestPointOnPolyline(polyline, camera);
+    // 找到最近點在polyline的哪個segment
+    int startIdx = 0;
+    for (int i = 0; i < polyline.length - 1; i++) {
+      double lat1 = polyline[i].lat, lat2 = polyline[i + 1].lat;
+      double lon1 = polyline[i].lon, lon2 = polyline[i + 1].lon;
+      if (closest != null &&
+          ((closest.lat - lat1) * (closest.lat - lat2) <= 0) &&
+          ((closest.lon - lon1) * (closest.lon - lon2) <= 0)) {
+        startIdx = i + 1;
+        break;
+      }
+    }
+    List<GeoPoint> filteredPolyline = [if (closest != null) closest, ...polyline.sublist(startIdx)];
+
     return Scaffold(
       appBar: AppBar(
         // TRY THIS: Try changing the color here to a specific color (to
@@ -130,9 +176,9 @@ class _MyHomePageState extends State<MyHomePage> {
               width: 400,
               height: 400,
               child: Canvas3dWidget(
-                polyline: points,
-                camera: GeoPoint(25.034, 121.5620, 100),
-                lookAt: GeoPoint(25.0356, 121.5600),
+                polyline: filteredPolyline,
+                camera: camera,
+                lookAt: lookAt,
               ),
               )
           ],
