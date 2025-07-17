@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:projection3d/projection3d.dart';
 import 'package:image/image.dart' as img;
 
-class MyCanvasWidget extends StatelessWidget {
+class Canvas3dWidget extends StatelessWidget {
   final List<GeoPoint> polyline;
   final GeoPoint camera;
   final GeoPoint lookAt;
 
   final void Function(Uint8List jpgBytes)? drawCallback;
 
-  const MyCanvasWidget({
+  const Canvas3dWidget({
     Key? key,
     required this.polyline,
     required this.camera,
