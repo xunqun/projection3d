@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:flutter/material.dart';
+
 class GeoPoint {
   double lat = 0; // 緯度
   double lon = 0; // 經度
@@ -74,11 +76,11 @@ class ThreeDProjectCanvas {
     // 畫每一段
     for (int i = 0; i < polyline.length - 1; i++) {
 
-      final p0 = polyline[i].toECEF();
-      final p1 = polyline[i + 1].toECEF();
-      final mid = [(p0[0]+p1[0])/2, (p0[1]+p1[1])/2, (p0[2]+p1[2])/2];
-      final toSegment = _normalize(_sub(mid, camPos));
-      if (_dot(heading, toSegment) < 0) continue; // 在反面，跳過
+      // final p0 = polyline[i].toECEF();
+      // final p1 = polyline[i + 1].toECEF();
+      // final mid = [(p0[0]+p1[0])/2, (p0[1]+p1[1])/2, (p0[2]+p1[2])/2];
+      // final toSegment = _normalize(_sub(mid, camPos));
+      // if (_dot(heading, toSegment) < 0) continue; // 在反面，跳過
 
       final quad = [
         left[i],
@@ -89,9 +91,12 @@ class ThreeDProjectCanvas {
       final projected = quad.map((v) => _project(v, viewMatrix)).toList();
       if (projected.any((p) => p == null)) continue;
       final path = Path()..moveTo(projected[0]!.dx, projected[0]!.dy);
+      debugPrint('move to: ${projected[0]!.dx}, ${projected[0]!.dy}');
       for (int j = 1; j < projected.length; j++) {
         path.lineTo(projected[j]!.dx, projected[j]!.dy);
+        debugPrint('line to: ${projected[j]!.dx}, ${projected[j]!.dy}');
       }
+
       path.close();
       canvas.drawPath(path, paint);
     }
