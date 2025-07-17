@@ -130,12 +130,10 @@ class ThreeDProjectCanvas {
   Offset? _project(List<double> point, List<List<double>> viewMatrix) {
     final width = screenSize.width;
     final height = screenSize.height;
-    final fov = pi / 2; // 90 deg
-    final aspect = width / height;
 
     List<double> mul(List<List<double>> m, List<double> v) {
       return List.generate(4, (i) =>
-        m[i][0]*v[0] + m[i][1]*v[1] + m[i][2]*v[2] + m[i][3]*v[3]
+      m[i][0]*v[0] + m[i][1]*v[1] + m[i][2]*v[2] + m[i][3]*v[3]
       );
     }
 
@@ -143,7 +141,7 @@ class ThreeDProjectCanvas {
     final v = mul(viewMatrix, p);
 
     final z = v[2];
-    if (z == 0) return null;
+    if (z >= 0) return null; // z >= 0 表示在鏡頭後方或平面上，忽略
 
     final xNDC = v[0] / -z;
     final yNDC = v[1] / -z;
