@@ -33,7 +33,7 @@ class ThreeDProjectCanvas {
     required this.lookAt,
     required this.polyline,
     this.thickness = 20,
-    this.screenSize = const Size(400, 400),
+    required this.screenSize,
   });
 
   void draw(Canvas canvas, Paint paint) {

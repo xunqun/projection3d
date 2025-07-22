@@ -10,12 +10,14 @@ class Canvas3dWidget extends StatelessWidget {
   final List<GeoPoint> polyline;
   final GeoPoint camera;
   final GeoPoint lookAt;
+  final Size size;
 
   const Canvas3dWidget({
     Key? key,
     required this.polyline,
     required this.camera,
     required this.lookAt,
+    required this.size
   }) : super(key: key);
 
   @override
@@ -25,10 +27,11 @@ class Canvas3dWidget extends StatelessWidget {
         camera: camera,
         lookAt: lookAt,
         polyline: polyline,
+        screenSize: size,
       ),
     );
 
-    return CustomPaint(size: Size(400, 400), painter: painter);
+    return CustomPaint(size: size, painter: painter);
   }
 }
 
@@ -67,7 +70,7 @@ class _MyPainter extends CustomPainter {
       ..lineTo(markerCenter.dx + markerRadius, markerCenter.dy + markerRadius /5)
       ..close();
     // check if the path is out of screen bounds
-    canvas.drawPath(trianglePath, markerPaint);
+    // canvas.drawPath(trianglePath, markerPaint);
     canvas.restore();
 
   }
