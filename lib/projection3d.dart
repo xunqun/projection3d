@@ -80,35 +80,16 @@ class ThreeDProjectCanvas {
     // 畫每一段
     for (int i = 0; i < polyline.length - 1; i++) {
 
-      // final p0 = polyline[i].toECEF();
-      // final p1 = polyline[i + 1].toECEF();
-      // final mid = [(p0[0]+p1[0])/2, (p0[1]+p1[1])/2, (p0[2]+p1[2])/2];
-      // final toSegment = _normalize(_sub(mid, camPos));
-      // if (_dot(heading, toSegment) < 0) continue; // 在反面，跳過
-
       final quad = [
         left[i],
         right[i],
         right[i + 1],
         left[i + 1],
       ];
-      final projected = quad.map((v) => _project(v, viewMatrix)).toList();
-      if (projected.any((p) => p == null)) continue;
-      final path = Path()..moveTo(projected[0]!.dx, projected[0]!.dy);
-      debugPrint('move to: ${projected[0]!.dx}, ${projected[0]!.dy}');
-      for (int j = 1; j < projected.length; j++) {
-        path.lineTo(projected[j]!.dx, projected[j]!.dy);
-        debugPrint('line to: ${projected[j]!.dx}, ${projected[j]!.dy}');
-      }
-
-      path.close();
-      // 與 viewport 做相交
-      final clippedPath = Path.combine(
-        PathOperation.intersect,
-        path,
-        viewportPath,
-      );
-      canvas.drawPath(clippedPath, paint);
+      final projectedPolygon = _projectAndClipPolygon(quad, viewMatrix, screenSize);
+      if (projectedPolygon.length < 3) continue;
+      final path = Path()..addPolygon(projectedPolygon, true);
+      canvas.drawPath(path, paint);
     }
   }
 
@@ -127,6 +108,77 @@ class ThreeDProjectCanvas {
     return M;
   }
 
+  List<Offset> _projectAndClipPolygon(
+      List<List<double>> quad, List<List<double>> viewMatrix, Size screenSize) {
+    // 1. 投影四個點
+    final projected = quad.map((v) => _project(v, viewMatrix)).toList();
+    if (projected.any((p) => p == null || p.dx.isNaN || p.dy.isNaN)) return [];
+
+    // 2. Sutherland–Hodgman 多邊形裁剪
+    List<Offset> subject = projected.cast<Offset>().toList();
+    final double w = screenSize.width, h = screenSize.height;
+
+    List<Offset> clipEdge(
+        List<Offset> input,
+        bool Function(Offset) inside,
+        Offset Function(Offset, Offset) intersect,
+        ) {
+      final output = <Offset>[];
+      for (int i = 0; i < input.length; i++) {
+        final curr = input[i];
+        final prev = input[(i - 1 + input.length) % input.length];
+        final currIn = inside(curr);
+        final prevIn = inside(prev);
+        if (currIn) {
+          if (!prevIn) {
+            output.add(intersect(prev, curr));
+          }
+          output.add(curr);
+        } else if (prevIn) {
+          output.add(intersect(prev, curr));
+        }
+      }
+      return output;
+    }
+
+    // 右邊界 x <= w
+    subject = clipEdge(
+      subject,
+          (p) => p.dx <= w,
+          (a, b) {
+        final dx = b.dx - a.dx;
+        if (dx == 0) return Offset(w, a.dy); // 垂直線
+        final t = (w - a.dx) / dx;
+        return Offset(w, a.dy + t * (b.dy - a.dy));
+      },
+    );
+
+    // 上邊界 y >= 0
+    subject = clipEdge(
+      subject,
+          (p) => p.dy >= 0,
+          (a, b) {
+        final dy = b.dy - a.dy;
+        if (dy == 0) return Offset(a.dx, 0); // 水平線
+        final t = (0 - a.dy) / dy;
+        return Offset(a.dx + t * (b.dx - a.dx), 0);
+      },
+    );
+
+    // 下邊界 y <= h
+    subject = clipEdge(
+      subject,
+          (p) => p.dy <= h,
+          (a, b) {
+        final dy = b.dy - a.dy;
+        if (dy == 0) return Offset(a.dx, h); // 水平線
+        final t = (h - a.dy) / dy;
+        return Offset(a.dx + t * (b.dx - a.dx), h);
+      },
+    );
+    return subject.length < 3 ? [] : subject;
+  }
+
   Offset? _project(List<double> point, List<List<double>> viewMatrix) {
     final width = screenSize.width;
     final height = screenSize.height;
@@ -139,9 +191,7 @@ class ThreeDProjectCanvas {
 
     final p = [...point, 1.0];
     final v = mul(viewMatrix, p);
-
     final z = v[2];
-    if (z >= 0) return null; // z >= 0 表示在鏡頭後方或平面上，忽略
 
     final xNDC = v[0] / -z;
     final yNDC = v[1] / -z;
@@ -163,6 +213,7 @@ class ThreeDProjectCanvas {
   ];
   List<double> _normalize(List<double> v) {
     final len = sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    if (len == 0) return [0, 0, 0]; // 防止 NaN
     return [v[0]/len, v[1]/len, v[2]/len];
   }
 }

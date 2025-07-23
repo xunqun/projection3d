@@ -79,11 +79,13 @@ class _MyHomePageState extends State<MyHomePage> {
     GeoPoint(25.034, 121.5640),
     GeoPoint(25.034, 121.5620),
     GeoPoint(25.035, 121.5600),
-    GeoPoint(25.036, 121.5600),
+    GeoPoint(25.036, 121.5680),
+    GeoPoint(25.0357, 121.5600),
     GeoPoint(25.0388, 121.5567),
+    GeoPoint(25.0388, 121.57),
   ];
 
-  var camera = GeoPoint(25.0342, 121.5700, 100);
+  var camera = GeoPoint(25.0345, 121.563, 100);
   var lookAt = GeoPoint(25.0388, 121.5567);
 
   // 計算camera到polyline線段的最近點
@@ -134,7 +136,8 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       }
     }
-    List<GeoPoint> filteredPolyline = [if (closest != null) closest, ...polyline.sublist(startIdx)];
+    // List<GeoPoint> filteredPolyline = [if (closest != null) closest, ...polyline.sublist(startIdx)];
+    List<GeoPoint> filteredPolyline = polyline.sublist(startIdx);
 
     return Scaffold(
       appBar: AppBar(
