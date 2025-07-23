@@ -133,18 +133,17 @@ class _MyHomePageState extends State<MyHomePage> {
     GeoPoint? closest = closestPointOnPolyline(polyline, camera);
     // 找到最近點在polyline的哪個segment
     int startIdx = 0;
-    // for (int i = 0; i < polyline.length - 1; i++) {
-    //   double lat1 = polyline[i].lat, lat2 = polyline[i + 1].lat;
-    //   double lon1 = polyline[i].lon, lon2 = polyline[i + 1].lon;
-    //   if (closest != null &&
-    //       ((closest.lat - lat1) * (closest.lat - lat2) <= 0) &&
-    //       ((closest.lon - lon1) * (closest.lon - lon2) <= 0)) {
-    //     startIdx = i + 1;
-    //     break;
-    //   }
-    // }
-    // List<GeoPoint> filteredPolyline = [if (closest != null) closest, ...polyline.sublist(startIdx)];
-    List<GeoPoint> filteredPolyline = polyline.sublist(startIdx);
+    for (int i = 0; i < polyline.length - 1; i++) {
+      double lat1 = polyline[i].lat, lat2 = polyline[i + 1].lat;
+      double lon1 = polyline[i].lon, lon2 = polyline[i + 1].lon;
+      if (closest != null &&
+          ((closest.lat - lat1) * (closest.lat - lat2) <= 0) &&
+          ((closest.lon - lon1) * (closest.lon - lon2) <= 0)) {
+        startIdx = i + 1;
+        break;
+      }
+    }
+    List<GeoPoint> filteredPolyline = [if (closest != null) closest, ...polyline.sublist(startIdx)];
 
     return Scaffold(
       appBar: AppBar(

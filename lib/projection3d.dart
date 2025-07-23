@@ -21,6 +21,7 @@ class GeoPoint {
     final double x = (N + alt) * cos(latRad) * cos(lonRad);
     final double y = (N + alt) * cos(latRad) * sin(lonRad);
     final double z = (N * (1 - e2) + alt) * sin(latRad);
+    // final double z = (N * (1 - e2) + alt) ;
     return [x, y, z];
   }
 }
@@ -45,32 +46,46 @@ class ThreeDProjectCanvas {
     final viewMatrix = _lookAt(camera.toECEF(), lookAt.toECEF());
     if (polyline.length < 2) return;
 
+
+    // 建立 offset 點
+    // 1. 計算每段 tangent 及法線
+    final tangents = <List<double>>[];
     final normals = <List<double>>[];
+    for (int i = 0; i < polyline.length - 1; i++) {
+      final a = polyline[i].toECEF();
+      final b = polyline[i + 1].toECEF();
+      final tangent = _normalize(_sub(b, a));
+      // 地心方向
+      final up = _normalize(a);
+      // 該段法線
+      final normal = _normalize(_cross(tangent, up));
+      tangents.add(tangent);
+      normals.add(normal);
+    }
+
+// 2. 每個頂點的 offset normal
+    final offsetNormals = <List<double>>[];
     for (int i = 0; i < polyline.length; i++) {
-      List<double> n;
       if (i == 0) {
-        // 第一個點，取第一段法線
-        final dir = _normalize(_sub(polyline[1].toECEF(), polyline[0].toECEF()));
-        n = _normalize(_cross(dir, [0, 0, 1]));
+        offsetNormals.add(normals[0]);
       } else if (i == polyline.length - 1) {
-        // 最後一個點，取最後一段法線
-        final dir = _normalize(_sub(polyline[i].toECEF(), polyline[i - 1].toECEF()));
-        n = _normalize(_cross(dir, [0, 0, 1]));
+        offsetNormals.add(normals.last);
       } else {
         // 取前後段法線平均
-        final dir1 = _normalize(_sub(polyline[i].toECEF(), polyline[i - 1].toECEF()));
-        final dir2 = _normalize(_sub(polyline[i + 1].toECEF(), polyline[i].toECEF()));
-        final n1 = _normalize(_cross(dir1, [0, 0, 1]));
-        final n2 = _normalize(_cross(dir2, [0, 0, 1]));
-        n = _normalize([n1[0] + n2[0], n1[1] + n2[1], n1[2] + n2[2]]);
+        final n = _normalize([
+          normals[i - 1][0] + normals[i][0],
+          normals[i - 1][1] + normals[i][1],
+          normals[i - 1][2] + normals[i][2],
+        ]);
+        offsetNormals.add(n);
       }
-      normals.add(n);
     }
-    // 建立 offset 點
+
+// 3. 計算 offset 點
     final left = <List<double>>[];
     final right = <List<double>>[];
     for (int i = 0; i < polyline.length; i++) {
-      final offset = normals[i].map((v) => v * (thickness / 2)).toList();
+      final offset = offsetNormals[i].map((v) => v * (thickness / 2)).toList();
       left.add(_add(polyline[i].toECEF(), offset));
       right.add(_sub(polyline[i].toECEF(), offset));
     }

@@ -58,7 +58,6 @@ class _MyPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
     projectCanvas.draw(canvas, paint);
 
-
     canvas.restore();
 
   }
