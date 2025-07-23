@@ -55,7 +55,7 @@ class ThreeDProjectCanvas {
     // 右手法線
     final right = _normalize(_cross(dir, up));
     // 三角形大小
-    const double size = 6.0;
+    const double size = 12.0;
     // 三角形三個頂點（3D）
     final tip3d = [
       pos[0] + dir[0] * size,

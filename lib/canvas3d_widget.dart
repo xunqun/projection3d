@@ -55,7 +55,7 @@ class _MyPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
     final paint = Paint()
-      ..color = Colors.amber
+      ..color = Colors.white
       ..isAntiAlias = false
       ..strokeWidth = 2
       ..style = PaintingStyle.fill;

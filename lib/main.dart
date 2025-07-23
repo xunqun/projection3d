@@ -188,6 +188,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 polyline: filteredPolyline,
                 camera: camera,
                 lookAt: lookAt,
+                currentPosition: lookAt,
                 size: Size(400, 400),
               ),
               )
