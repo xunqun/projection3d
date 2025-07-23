@@ -10,6 +10,7 @@ class Canvas3dWidget extends StatelessWidget {
   final List<GeoPoint> polyline;
   final GeoPoint camera;
   final GeoPoint lookAt;
+  final GeoPoint currentPosition;
   final Size size;
 
   const Canvas3dWidget({
@@ -17,6 +18,7 @@ class Canvas3dWidget extends StatelessWidget {
     required this.polyline,
     required this.camera,
     required this.lookAt,
+    required this.currentPosition,
     required this.size
   }) : super(key: key);
 
@@ -26,6 +28,7 @@ class Canvas3dWidget extends StatelessWidget {
       projectCanvas: ThreeDProjectCanvas(
         camera: camera,
         lookAt: lookAt,
+        currentPosition: currentPosition,
         polyline: polyline,
         screenSize: size,
       ),
@@ -55,9 +58,15 @@ class _MyPainter extends CustomPainter {
       ..color = Colors.amber
       ..isAntiAlias = false
       ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-    projectCanvas.draw(canvas, paint);
+      ..style = PaintingStyle.fill;
 
+    final markerPaint = Paint()
+      ..color = Colors.red
+      ..isAntiAlias = false
+      ..strokeWidth = 2
+      ..style = PaintingStyle.fill;
+    projectCanvas.draw(canvas, paint);
+    projectCanvas.drawMarker(canvas, markerPaint);
     canvas.restore();
 
   }

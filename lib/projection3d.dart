@@ -29,6 +29,7 @@ class GeoPoint {
 class ThreeDProjectCanvas {
   final GeoPoint camera;
   final GeoPoint lookAt;
+  final GeoPoint currentPosition;
   final List<GeoPoint> polyline;
   final double thickness;
   final Size screenSize;
@@ -36,10 +37,50 @@ class ThreeDProjectCanvas {
   ThreeDProjectCanvas({
     required this.camera,
     required this.lookAt,
+    required this.currentPosition,
     required this.polyline,
     this.thickness = 20,
     required this.screenSize,
   });
+
+  void drawMarker(Canvas canvas, Paint paint) {
+    // 以 currentPosition 為三角形中心，並在3D空間建立三角形
+    final pos = currentPosition.toECEF();
+    final look = lookAt.toECEF();
+    final viewMatrix = _lookAt(camera.toECEF(), lookAt.toECEF());
+    // 3D方向
+    final dir = _normalize(_sub(look, pos));
+    // 地心方向
+    final up = _normalize(pos);
+    // 右手法線
+    final right = _normalize(_cross(dir, up));
+    // 三角形大小
+    const double size = 6.0;
+    // 三角形三個頂點（3D）
+    final tip3d = [
+      pos[0] + dir[0] * size,
+      pos[1] + dir[1] * size,
+      pos[2] + dir[2] * size,
+    ];
+    final left3d = [
+      pos[0] - right[0] * size * 0.6 - dir[0] * size * 0.6,
+      pos[1] - right[1] * size * 0.6 - dir[1] * size * 0.6,
+      pos[2] - right[2] * size * 0.6 - dir[2] * size * 0.6,
+    ];
+    final right3d = [
+      pos[0] + right[0] * size * 0.6 - dir[0] * size * 0.6,
+      pos[1] + right[1] * size * 0.6 - dir[1] * size * 0.6,
+      pos[2] + right[2] * size * 0.6 - dir[2] * size * 0.6,
+    ];
+    // 投影到2D
+    final tip = _project(tip3d, viewMatrix);
+    final left = _project(left3d, viewMatrix);
+    final rightPt = _project(right3d, viewMatrix);
+    if (tip == null || left == null || rightPt == null) return;
+    final points = [tip, left, rightPt];
+    final path = Path()..addPolygon(points, true);
+    canvas.drawPath(path, paint);
+  }
 
   void draw(Canvas canvas, Paint paint) {
 
