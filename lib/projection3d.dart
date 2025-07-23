@@ -11,12 +11,16 @@ class GeoPoint {
   GeoPoint(this.lat, this.lon, [this.alt = 0]);
 
   List<double> toECEF() {
-    // 忽略地球曲率，���設所有點在平面上
-    // 緯度 1 度約 111320 米
-    const double metersPerDegreeLat = 111320.0;
-    final double x = (lon - 0) * metersPerDegreeLat * cos(lat * pi / 180);
-    final double y = (lat - 0) * metersPerDegreeLat;
-    final double z = alt;
+
+    const double a = 6378137.0; // 赤道半徑
+    const double e2 = 0.00669437999014; // 離心率平方
+
+    final double latRad = lat * pi / 180;
+    final double lonRad = lon * pi / 180;
+    final double N = a / sqrt(1 - e2 * sin(latRad) * sin(latRad));
+    final double x = (N + alt) * cos(latRad) * cos(lonRad);
+    final double y = (N + alt) * cos(latRad) * sin(lonRad);
+    final double z = (N * (1 - e2) + alt) * sin(latRad);
     return [x, y, z];
   }
 }
@@ -62,7 +66,6 @@ class ThreeDProjectCanvas {
       }
       normals.add(n);
     }
-
     // 建立 offset 點
     final left = <List<double>>[];
     final right = <List<double>>[];
@@ -88,6 +91,7 @@ class ThreeDProjectCanvas {
       ];
       final projectedPolygon = _projectAndClipPolygon(quad, viewMatrix, screenSize);
       if (projectedPolygon.length < 3) continue;
+      debugPrint('Projected polygon: $projectedPolygon');
       final path = Path()..addPolygon(projectedPolygon, true);
       canvas.drawPath(path, paint);
     }
@@ -96,7 +100,9 @@ class ThreeDProjectCanvas {
 
   List<List<double>> _lookAt(List<double> eye, List<double> center) {
     final f = _normalize(_sub(center, eye));
-    final s = _normalize(_cross(f, [0, 0, 1]));
+    // 動態 up vector：camera 的 ECEF 座標歸一化
+    final up = _normalize(eye);
+    final s = _normalize(_cross(f, up));
     final u = _cross(s, f);
 
     final List<List<double>> M = [
@@ -148,8 +154,22 @@ class ThreeDProjectCanvas {
           (a, b) {
         final dx = b.dx - a.dx;
         if (dx == 0) return Offset(w, a.dy); // 垂直線
-        final t = (w - a.dx) / dx;
+        var t = (w - a.dx) / dx;
+        t = t.clamp(0.0, 1.0); // 限制 t 在 0~1
         return Offset(w, a.dy + t * (b.dy - a.dy));
+      },
+    );
+
+    // 左邊界 x >= 0
+    subject = clipEdge(
+      subject,
+          (p) => p.dx >= 0,
+          (a, b) {
+        final dx = b.dx - a.dx;
+        if (dx == 0) return Offset(0, a.dy); // 垂直線
+        var t = (0 - a.dx) / dx;
+        t = t.clamp(0.0, 1.0); // 限制 t 在 0~1
+        return Offset(0, a.dy + t * (b.dy - a.dy));
       },
     );
 
@@ -160,7 +180,8 @@ class ThreeDProjectCanvas {
           (a, b) {
         final dy = b.dy - a.dy;
         if (dy == 0) return Offset(a.dx, 0); // 水平線
-        final t = (0 - a.dy) / dy;
+        var t = (0 - a.dy) / dy;
+        t = t.clamp(0.0, 1.0); // 限制 t 在 0~1
         return Offset(a.dx + t * (b.dx - a.dx), 0);
       },
     );
@@ -172,7 +193,8 @@ class ThreeDProjectCanvas {
           (a, b) {
         final dy = b.dy - a.dy;
         if (dy == 0) return Offset(a.dx, h); // 水平線
-        final t = (h - a.dy) / dy;
+        var t = (h - a.dy) / dy;
+        t = t.clamp(0.0, 1.0); // 限制 t 在 0~1
         return Offset(a.dx + t * (b.dx - a.dx), h);
       },
     );
@@ -191,7 +213,14 @@ class ThreeDProjectCanvas {
 
     final p = [...point, 1.0];
     final v = mul(viewMatrix, p);
-    final z = v[2];
+    var z = v[2];
+
+    // z 太接近 0 或為正（在鏡頭後方），不投影
+    if (z.abs() < 1e-6) {
+      // 夾住 z，避免除以 0
+      z = z.isNegative ? -1e-6 : 1e-6;
+    }
+    if (z > 0) z = -1e-6; // 鏡頭後方也夾到前方極小值
 
     final xNDC = v[0] / -z;
     final yNDC = v[1] / -z;

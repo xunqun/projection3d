@@ -74,26 +74,13 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  var polyline = [
-    GeoPoint(25.0330, 121.5654),
-    GeoPoint(25.034, 121.5640),
-    GeoPoint(25.034, 121.5620),
-    GeoPoint(25.035, 121.5600),
-    GeoPoint(25.036, 121.5680),
-    GeoPoint(25.0357, 121.5600),
-    GeoPoint(25.0388, 121.5567),
-    GeoPoint(25.0388, 121.57),
-  ];
 
-  var camera = GeoPoint(25.0345, 121.563, 100);
-  var lookAt = GeoPoint(25.0388, 121.5567);
 
   // 計算camera到polyline線段的最近點
   GeoPoint? closestPointOnPolyline(List<GeoPoint> polyline, GeoPoint camera) {
     double minDist = double.infinity;
     GeoPoint? closest;
     int closestSegmentIdx = 0;
-    double metersPerDegreeLat = 111320.0;
     List<double> cam = camera.toECEF();
     for (int i = 0; i < polyline.length - 1; i++) {
       List<double> a = polyline[i].toECEF();
@@ -122,20 +109,40 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    var polyline = [
+      GeoPoint(22.963207, 120.219099),
+      GeoPoint(22.9632, 120.21989),
+      GeoPoint(22.96474, 120.21985),
+      GeoPoint(22.96474, 120.22016),
+      GeoPoint(22.96475, 120.22077),
+      GeoPoint(22.96476, 120.22104),
+      GeoPoint(22.96476, 120.22128),
+      GeoPoint(22.96477, 120.22205),
+      GeoPoint(22.96479, 120.2228),
+      GeoPoint(22.96479, 120.22316),
+
+
+
+
+
+    ];
+
+    var camera = GeoPoint(22.963207, 120.219099, 50);
+    var lookAt = GeoPoint(22.9632, 120.21989, 0);
     // 找到最近點
     GeoPoint? closest = closestPointOnPolyline(polyline, camera);
     // 找到最近點在polyline的哪個segment
     int startIdx = 0;
-    for (int i = 0; i < polyline.length - 1; i++) {
-      double lat1 = polyline[i].lat, lat2 = polyline[i + 1].lat;
-      double lon1 = polyline[i].lon, lon2 = polyline[i + 1].lon;
-      if (closest != null &&
-          ((closest.lat - lat1) * (closest.lat - lat2) <= 0) &&
-          ((closest.lon - lon1) * (closest.lon - lon2) <= 0)) {
-        startIdx = i + 1;
-        break;
-      }
-    }
+    // for (int i = 0; i < polyline.length - 1; i++) {
+    //   double lat1 = polyline[i].lat, lat2 = polyline[i + 1].lat;
+    //   double lon1 = polyline[i].lon, lon2 = polyline[i + 1].lon;
+    //   if (closest != null &&
+    //       ((closest.lat - lat1) * (closest.lat - lat2) <= 0) &&
+    //       ((closest.lon - lon1) * (closest.lon - lon2) <= 0)) {
+    //     startIdx = i + 1;
+    //     break;
+    //   }
+    // }
     // List<GeoPoint> filteredPolyline = [if (closest != null) closest, ...polyline.sublist(startIdx)];
     List<GeoPoint> filteredPolyline = polyline.sublist(startIdx);
 
