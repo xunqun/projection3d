@@ -12,14 +12,14 @@ class Pic3DGenerator {
   Pic3DGenerator._();
 
   setBitmapListener(Function(Uint8List) callback) {
-    _instance.drawCallback = callback;
+    drawCallback = callback;
   }
 
   static get() {
     return _instance;
   }
 
-  void generate(List<GeoPoint> polyline, GeoPoint camera, GeoPoint lookAt, GeoPoint currentPosition, Size size) {
+  void update(List<GeoPoint> polyline, GeoPoint camera, GeoPoint lookAt, GeoPoint currentPosition, Size size) {
 
     final painter = _MyPainter(
       projectCanvas: ThreeDProjectCanvas(
