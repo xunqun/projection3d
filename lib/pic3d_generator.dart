@@ -45,6 +45,8 @@ class Pic3DGenerator {
         if (drawCallback != null && byteData != null) {
           final jpgBytes = await painter.encodeJpgFromPng(byteData.buffer.asUint8List());
           drawCallback!(jpgBytes);
+          // debug print the kb size of the jpgBytes
+          print('JPG size: ${jpgBytes.lengthInBytes / 1024} KB');
         }
       });
     });
