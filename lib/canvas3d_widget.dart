@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:projection3d/projection3d.dart';
 import 'package:image/image.dart' as img;
 
@@ -11,6 +10,7 @@ class Canvas3dWidget extends StatelessWidget {
   final GeoPoint camera;
   final GeoPoint lookAt;
   final GeoPoint currentPosition;
+  final List<List<GeoPoint>> nearbyRoads;
   final Size size;
 
   const Canvas3dWidget({
@@ -19,7 +19,8 @@ class Canvas3dWidget extends StatelessWidget {
     required this.camera,
     required this.lookAt,
     required this.currentPosition,
-    required this.size
+    this.nearbyRoads = const [],
+    required this.size,
   }) : super(key: key);
 
   @override
@@ -30,6 +31,7 @@ class Canvas3dWidget extends StatelessWidget {
         lookAt: lookAt,
         currentPosition: currentPosition,
         polyline: polyline,
+        nearbyRoads: nearbyRoads,
         screenSize: size,
       ),
     );
@@ -42,38 +44,46 @@ class _MyPainter extends CustomPainter {
   final ThreeDProjectCanvas projectCanvas;
   final void Function(Uint8List jpgBytes)? drawCallback;
   _MyPainter({required this.projectCanvas, this.drawCallback});
+
   @override
   void paint(Canvas canvas, Size size) {
-    // 使用 clipRect 限制繪圖區域不超出 widget
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // 填滿黑色底色
+    // 黑色底色
     final backgroundPaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.fill;
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
-    final paint = Paint()
+    // 1. 附近道路（灰色細線）
+    final roadPaint = Paint()
+      ..color = Colors.grey.shade600
+      ..isAntiAlias = false
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    projectCanvas.drawRoads(canvas, roadPaint);
+
+    // 2. 導航路線（白色粗帶）
+    final navPaint = Paint()
       ..color = Colors.white
       ..isAntiAlias = false
       ..strokeWidth = 2
       ..style = PaintingStyle.fill;
+    projectCanvas.draw(canvas, navPaint);
 
+    // 3. 目前位置（紅色三角形）
     final markerPaint = Paint()
       ..color = Colors.red
       ..isAntiAlias = false
       ..strokeWidth = 2
       ..style = PaintingStyle.fill;
-    projectCanvas.draw(canvas, paint);
     projectCanvas.drawMarker(canvas, markerPaint);
+
     canvas.restore();
-
   }
-  // 需引入 image package
-  Future<Uint8List> encodeJpgFromPng(Uint8List pngBytes) async {
-    // 這裡假設你已經在 pubspec.yaml 加入 image: ^4.0.0
 
+  Future<Uint8List> encodeJpgFromPng(Uint8List pngBytes) async {
     final image = img.decodeImage(pngBytes)!;
     return Uint8List.fromList(img.encodeJpg(image));
   }

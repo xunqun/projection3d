@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:projection3d/canvas3d_widget.dart';
 
 import 'projection3d.dart';
+import 'road_tile_fetcher.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,27 +12,11 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
@@ -40,19 +25,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   final String title;
 
@@ -62,136 +36,126 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  List<List<GeoPoint>> _nearbyRoads = [];
+
+  // 導航起點（camera 所在位置）
+  final GeoPoint _camera = GeoPoint(22.963207, 120.219099, 50);
+  final GeoPoint _lookAt = GeoPoint(22.9632, 120.21989, 0);
+
+  final List<GeoPoint> _polyline = [
+    GeoPoint(22.963207, 120.219099),
+    GeoPoint(22.9632, 120.21989),
+    GeoPoint(22.96474, 120.21985),
+    GeoPoint(22.96474, 120.22016),
+    GeoPoint(22.96475, 120.22077),
+    GeoPoint(22.96476, 120.22104),
+    GeoPoint(22.96476, 120.22128),
+    GeoPoint(22.96477, 120.22205),
+    GeoPoint(22.96479, 120.2228),
+    GeoPoint(22.96479, 120.22316),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNearbyRoads();
+  }
+
+  Future<void> _loadNearbyRoads() async {
+    // 以 camera 位置為中心抓取附近道路
+    final roads = await RoadTileFetcher.fetchNearbyRoads(
+        _camera.lat, _camera.lon);
+    if (mounted) {
+      setState(() {
+        _nearbyRoads = roads;
+      });
+    }
+  }
 
   void _incrementCounter() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
       _counter++;
     });
   }
 
-
-
-  // 計算camera到polyline線段的最近點
+  // 計算 camera 到 polyline 的最近點
   GeoPoint? closestPointOnPolyline(List<GeoPoint> polyline, GeoPoint camera) {
     double minDist = double.infinity;
     GeoPoint? closest;
-    int closestSegmentIdx = 0;
     List<double> cam = camera.toECEF();
     for (int i = 0; i < polyline.length - 1; i++) {
       List<double> a = polyline[i].toECEF();
       List<double> b = polyline[i + 1].toECEF();
-      // 線段ab
       List<double> ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
       List<double> ac = [cam[0] - a[0], cam[1] - a[1], cam[2] - a[2]];
-      double abLen2 = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
-      double t = abLen2 == 0 ? 0 : (ab[0] * ac[0] + ab[1] * ac[1] + ab[2] * ac[2]) / abLen2;
+      double abLen2 = ab[0]*ab[0] + ab[1]*ab[1] + ab[2]*ab[2];
+      double t = abLen2 == 0 ? 0 : (ab[0]*ac[0] + ab[1]*ac[1] + ab[2]*ac[2]) / abLen2;
       t = t.clamp(0, 1);
-      List<double> proj = [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t];
-      double dist = sqrt(pow(cam[0] - proj[0], 2) + pow(cam[1] - proj[1], 2) + pow(cam[2] - proj[2], 2));
+      List<double> proj = [a[0]+ab[0]*t, a[1]+ab[1]*t, a[2]+ab[2]*t];
+      double dist = sqrt(pow(cam[0]-proj[0], 2) + pow(cam[1]-proj[1], 2) + pow(cam[2]-proj[2], 2));
       if (dist < minDist) {
         minDist = dist;
         closest = GeoPoint(
-          polyline[i].lat + (polyline[i + 1].lat - polyline[i].lat) * t,
-          polyline[i].lon + (polyline[i + 1].lon - polyline[i].lon) * t,
-          polyline[i].alt + (polyline[i + 1].alt - polyline[i].alt) * t,
+          polyline[i].lat + (polyline[i+1].lat - polyline[i].lat) * t,
+          polyline[i].lon + (polyline[i+1].lon - polyline[i].lon) * t,
+          polyline[i].alt + (polyline[i+1].alt - polyline[i].alt) * t,
         );
-        closestSegmentIdx = i;
       }
     }
-    // 返回最近點和其所在segment index
     return closest;
   }
 
   @override
   Widget build(BuildContext context) {
-    var polyline = [
-      GeoPoint(22.963207, 120.219099),
-      GeoPoint(22.9632, 120.21989),
-      GeoPoint(22.96474, 120.21985),
-      GeoPoint(22.96474, 120.22016),
-      GeoPoint(22.96475, 120.22077),
-      GeoPoint(22.96476, 120.22104),
-      GeoPoint(22.96476, 120.22128),
-      GeoPoint(22.96477, 120.22205),
-      GeoPoint(22.96479, 120.2228),
-      GeoPoint(22.96479, 120.22316),
-
-
-
-
-
-    ];
-
-    var camera = GeoPoint(22.963207, 120.219099, 50);
-    var lookAt = GeoPoint(22.9632, 120.21989, 0);
-    // 找到最近點
-    GeoPoint? closest = closestPointOnPolyline(polyline, camera);
-    // 找到最近點在polyline的哪個segment
+    final GeoPoint? closest = closestPointOnPolyline(_polyline, _camera);
     int startIdx = 0;
-    for (int i = 0; i < polyline.length - 1; i++) {
-      double lat1 = polyline[i].lat, lat2 = polyline[i + 1].lat;
-      double lon1 = polyline[i].lon, lon2 = polyline[i + 1].lon;
+    for (int i = 0; i < _polyline.length - 1; i++) {
       if (closest != null &&
-          ((closest.lat - lat1) * (closest.lat - lat2) <= 0) &&
-          ((closest.lon - lon1) * (closest.lon - lon2) <= 0)) {
+          ((_polyline[i].lat - closest.lat) * (_polyline[i+1].lat - closest.lat) <= 0) &&
+          ((_polyline[i].lon - closest.lon) * (_polyline[i+1].lon - closest.lon) <= 0)) {
         startIdx = i + 1;
         break;
       }
     }
-    List<GeoPoint> filteredPolyline = [if (closest != null) closest, ...polyline.sublist(startIdx)];
+    final filteredPolyline = [
+      if (closest != null) closest,
+      ..._polyline.sublist(startIdx),
+    ];
 
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
+            const Text('You have pushed the button this many times:'),
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            // 道路載入狀態提示
+            Text(
+              _nearbyRoads.isEmpty
+                  ? '載入附近道路中...'
+                  : '已載入 ${_nearbyRoads.length} 條附近道路',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: 400,
               height: 400,
               child: Canvas3dWidget(
                 polyline: filteredPolyline,
-                camera: camera,
-                lookAt: lookAt,
-                currentPosition: lookAt,
-                size: Size(400, 400),
+                camera: _camera,
+                lookAt: _lookAt,
+                currentPosition: _lookAt,
+                nearbyRoads: _nearbyRoads,
+                size: const Size(400, 400),
               ),
-              )
+            ),
           ],
         ),
       ),
@@ -199,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
     );
   }
 }
