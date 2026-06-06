@@ -399,7 +399,7 @@ class ThreeDProjectCanvas {
   void _svgRoads(StringBuffer buf) {
     if (nearbyRoads.isEmpty) return;
     final vm = _lookAt(camera.toECEF(), lookAt.toECEF());
-    buf.write('<g stroke="#666" stroke-width="1" stroke-linecap="round">');
+    buf.write('<g stroke="#666" stroke-width="3" stroke-linecap="round">');
     for (final road in nearbyRoads) {
       for (int i = 0; i < road.length - 1; i++) {
         final aV = _toViewSpace(road[i].toECEF(), vm);

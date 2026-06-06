@@ -60,7 +60,7 @@ class _MyPainter extends CustomPainter {
     final roadPaint = Paint()
       ..color = Colors.grey.shade600
       ..isAntiAlias = false
-      ..strokeWidth = 3
+      ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
     projectCanvas.drawRoads(canvas, roadPaint);
 
