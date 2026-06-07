@@ -7,10 +7,12 @@ class GeoPoint {
   double lat = 0; // 緯度
   double lon = 0; // 經度
   double alt = 0; // 海拔高度，默認為 0
+  List<double>? _ecefCache;
 
   GeoPoint(this.lat, this.lon, [this.alt = 0]);
 
   List<double> toECEF() {
+    if (_ecefCache != null) return _ecefCache!;
 
     const double a = 6378137.0; // 赤道半徑
     const double e2 = 0.00669437999014; // 離心率平方
@@ -21,7 +23,8 @@ class GeoPoint {
     final double x = (N + alt) * cos(latRad) * cos(lonRad);
     final double y = (N + alt) * cos(latRad) * sin(lonRad);
     final double z = (N * (1 - e2) + alt) * sin(latRad);
-    return [x, y, z];
+    _ecefCache = [x, y, z];
+    return _ecefCache!;
   }
 }
 
