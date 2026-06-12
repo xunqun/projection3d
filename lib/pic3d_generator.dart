@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'projection3d.dart';
 import 'package:image/image.dart' as img;
@@ -115,6 +116,9 @@ class _MyPainter extends CustomPainter {
       ..strokeWidth = 2
       ..style = PaintingStyle.fill;
     projectCanvas.drawMarker(canvas, markerPaint);
+
+    // 4. Debug 序號文字
+    projectCanvas.drawDebugSeq(canvas);
 
     canvas.restore();
   }

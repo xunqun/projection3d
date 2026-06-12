@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class GeoPoint {
@@ -46,6 +47,48 @@ class ThreeDProjectCanvas {
     this.thickness = 20,
     required this.screenSize,
   });
+
+  static int _debugSeq = 0;
+
+  static int getAndIncrementDebugSeq() {
+    final val = _debugSeq;
+    _debugSeq = (_debugSeq + 1) % 100;
+    return val;
+  }
+
+  void drawDebugSeq(Canvas canvas) {
+    if (kDebugMode) {
+      final seqStr = getAndIncrementDebugSeq().toString().padLeft(2, '0');
+      
+      final bgPaint = Paint()
+        ..color = Colors.black.withOpacity(0.6)
+        ..style = PaintingStyle.fill;
+        
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(5, 5, 34, 22),
+          const Radius.circular(3),
+        ),
+        bgPaint,
+      );
+
+      final textSpan = TextSpan(
+        text: seqStr,
+        style: const TextStyle(
+          color: Color(0xFF00FF00),
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+        ),
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, const Offset(8, 7));
+    }
+  }
 
   // ── Public draw methods ────────────────────────────────────────────────
 
@@ -393,6 +436,14 @@ class ThreeDProjectCanvas {
     _svgRoads(buf);
     _svgDraw(buf);
     _svgMarker(buf);
+
+    if (kDebugMode) {
+      final seqStr = getAndIncrementDebugSeq().toString().padLeft(2, '0');
+      buf.write(
+        '<rect x="5" y="5" width="34" height="22" rx="3" fill="black" fill-opacity="0.6"/>'
+        '<text x="8" y="21" fill="#00FF00" font-size="16" font-family="monospace" font-weight="bold">$seqStr</text>'
+      );
+    }
 
     buf.write('</g></svg>');
     return buf.toString();
