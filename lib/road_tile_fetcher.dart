@@ -1,7 +1,8 @@
-import 'dart:isolate';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'projection3d.dart';
 
 /// Fetches nearby road geometries from Mapbox Vector Tiles.
@@ -16,6 +17,9 @@ class RoadTileFetcher {
   static final List<String> _cacheKeys = [];
   static const int _maxCacheSize = 50;
 
+  /// For unit testing only. If set, this directory will be used instead of [getTemporaryDirectory].
+  static Directory? cacheDirectoryOverride;
+
   static void _saveToCache(String key, List<List<GeoPoint>> roads) {
     if (_cache.containsKey(key)) {
       _cacheKeys.remove(key);
@@ -28,6 +32,11 @@ class RoadTileFetcher {
     }
   }
 
+  static void clearMemoryCache() {
+    _cache.clear();
+    _cacheKeys.clear();
+  }
+
   /// 回傳 [lat],[lon] 在 zoom=16 下對應的 tile key（格式："z/x/y"）。
   /// 供外部判斷是否已移入新 tile，決定是否重新抓取。
   static String tileKeyFor(double lat, double lon) {
@@ -36,11 +45,11 @@ class RoadTileFetcher {
   }
 
   /// Returns road polylines (in GeoPoint) within the 3x3 tiles surrounding [lat],[lon].
-  static Future<List<List<GeoPoint>>> fetchNearbyRoads(
+  static Future<(List<List<GeoPoint>> roads, bool success)> fetchNearbyRoads(
       double lat, double lon) async {
     final (tx, ty) = _latLonToTile(lat, lon, _zoom);
     final allRoads = <List<GeoPoint>>[];
-    final futures = <Future<List<List<GeoPoint>>>>[];
+    final futures = <Future<List<List<GeoPoint>>?>>[];
 
     for (int dx = -1; dx <= 1; dx++) {
       for (int dy = -1; dy <= 1; dy++) {
@@ -49,42 +58,89 @@ class RoadTileFetcher {
     }
 
     final results = await Future.wait(futures);
+    bool success = true;
     for (final roads in results) {
-      allRoads.addAll(roads);
+      if (roads == null) {
+        success = false;
+      } else {
+        allRoads.addAll(roads);
+      }
     }
-    return allRoads;
+    return (allRoads, success);
   }
 
-  static Future<List<List<GeoPoint>>> _fetchSingleTile(
+  static Future<List<List<GeoPoint>>?> _fetchSingleTile(
       int tx, int ty, int z) async {
     final key = '$z/$tx/$ty';
 
+    // 1. 檢查記憶體快取 (Memory Cache)
     if (_cache.containsKey(key)) {
-      // Move key to the end of cacheKeys to maintain LRU order
       _cacheKeys.remove(key);
       _cacheKeys.add(key);
       return _cache[key]!;
     }
 
+    // 2. 檢查持久化本機檔案快取 (Persistent File Cache)
+    File? cacheFile;
+    try {
+      final tempDir = cacheDirectoryOverride ?? await getTemporaryDirectory();
+      final roadsCacheDir = Directory('${tempDir.path}/roads_cache');
+      if (!await roadsCacheDir.exists()) {
+        await roadsCacheDir.create(recursive: true);
+      }
+      cacheFile = File('${roadsCacheDir.path}/${z}_${tx}_$ty.omv');
+    } catch (e) {
+      print('RoadTileFetcher: failed to init persistent cache dir: $e');
+    }
+
+    if (cacheFile != null && await cacheFile.exists()) {
+      try {
+        final lastModified = await cacheFile.lastModified();
+        final age = DateTime.now().difference(lastModified);
+        if (age.inDays < 14) {
+          final bodyBytes = await cacheFile.readAsBytes();
+          final roads = _parseMvt(bodyBytes, tx, ty, z);
+          _saveToCache(key, roads);
+          print('RoadTileFetcher: loaded $key from persistent cache (age: ${age.inDays} days)');
+          return roads;
+        } else {
+          print('RoadTileFetcher: persistent cache expired for $key (${age.inDays} days old)');
+        }
+      } catch (e) {
+        print('RoadTileFetcher: failed to read cache file: $e');
+      }
+    }
+
+    // 3. 快取未命中，從 HERE API 下載
     final url =
         'https://vector.hereapi.com/v2/vectortiles/base/mc/$z/$tx/$ty/omv'
         '?apikey=$_apiKey';
 
     try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
         print('RoadTileFetcher: HTTP ${response.statusCode} for $key');
-        return [];
+        return null;
       }
       final bodyBytes = response.bodyBytes;
-      // Offload MVT parsing to a background isolate to keep UI thread smooth
-      final roads = await Isolate.run(() => _parseMvt(bodyBytes, tx, ty, z));
+      final roads = _parseMvt(bodyBytes, tx, ty, z);
+      
+      // 寫入記憶體與檔案快取
       _saveToCache(key, roads);
+      if (cacheFile != null) {
+        try {
+          await cacheFile.writeAsBytes(bodyBytes);
+          print('RoadTileFetcher: saved $key to persistent cache');
+        } catch (e) {
+          print('RoadTileFetcher: failed to write cache file: $e');
+        }
+      }
+
       print('RoadTileFetcher: fetched ${roads.length} roads for tile $key');
       return roads;
     } catch (e) {
       print('RoadTileFetcher error for $key: $e');
-      return [];
+      return null;
     }
   }
 

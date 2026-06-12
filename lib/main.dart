@@ -63,7 +63,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _loadNearbyRoads() async {
     // 以 camera 位置為中心抓取附近道路
-    final roads = await RoadTileFetcher.fetchNearbyRoads(
+    final (roads, _) = await RoadTileFetcher.fetchNearbyRoads(
         _camera.lat, _camera.lon);
     if (mounted) {
       setState(() {
