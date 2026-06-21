@@ -99,34 +99,47 @@ class ThreeDProjectCanvas {
     final dir = _normalize(_sub(look, pos));
     final up = _normalize(pos);
     final right = _normalize(_cross(dir, up));
-    const double size = 12.0;
-    final tip3d = [
-      pos[0] + dir[0] * size,
-      pos[1] + dir[1] * size,
-      pos[2] + dir[2] * size,
-    ];
-    final left3d = [
-      pos[0] - right[0] * size * 0.6 - dir[0] * size * 0.6,
-      pos[1] - right[1] * size * 0.6 - dir[1] * size * 0.6,
-      pos[2] - right[2] * size * 0.6 - dir[2] * size * 0.6,
-    ];
-    final right3d = [
-      pos[0] + right[0] * size * 0.6 - dir[0] * size * 0.6,
-      pos[1] + right[1] * size * 0.6 - dir[1] * size * 0.6,
-      pos[2] + right[2] * size * 0.6 - dir[2] * size * 0.6,
-    ];
-    final tip = _project(tip3d, viewMatrix);
-    final left = _project(left3d, viewMatrix);
-    final rightPt = _project(right3d, viewMatrix);
-    if (tip == null || left == null || rightPt == null) return;
-    final points = [tip, left, rightPt];
-    final path = Path()..addPolygon(points, true);
-    canvas.drawPath(path, paint);
+
+    void drawSingleArrow(double size, Color color) {
+      final tip3d = [
+        pos[0] + dir[0] * size,
+        pos[1] + dir[1] * size,
+        pos[2] + dir[2] * size,
+      ];
+      final left3d = [
+        pos[0] - right[0] * size * 0.6 - dir[0] * size * 0.6,
+        pos[1] - right[1] * size * 0.6 - dir[1] * size * 0.6,
+        pos[2] - right[2] * size * 0.6 - dir[2] * size * 0.6,
+      ];
+      final right3d = [
+        pos[0] + right[0] * size * 0.6 - dir[0] * size * 0.6,
+        pos[1] + right[1] * size * 0.6 - dir[1] * size * 0.6,
+        pos[2] + right[2] * size * 0.6 - dir[2] * size * 0.6,
+      ];
+      final tip = _project(tip3d, viewMatrix);
+      final left = _project(left3d, viewMatrix);
+      final rightPt = _project(right3d, viewMatrix);
+      if (tip == null || left == null || rightPt == null) return;
+      final points = [tip, left, rightPt];
+      final path = Path()..addPolygon(points, true);
+      
+      final arrowPaint = Paint()
+        ..color = color
+        ..isAntiAlias = paint.isAntiAlias
+        ..style = PaintingStyle.fill;
+      canvas.drawPath(path, arrowPaint);
+    }
+
+    // 雙層箭頭：外層橘紅，內層溫暖白
+    drawSingleArrow(14.0, const Color(0xFFEA580C));
+    drawSingleArrow(10.0, const Color(0xFFFFFBF8));
   }
 
-  void draw(Canvas canvas, Paint paint) {
+  void draw(Canvas canvas, Paint paint, {double? thicknessOverride}) {
     final viewMatrix = _lookAt(camera.toECEF(), lookAt.toECEF());
     if (polyline.length < 2) return;
+
+    final drawThickness = thicknessOverride ?? thickness;
 
     final tangents = <List<double>>[];
     final normals = <List<double>>[];
@@ -140,26 +153,27 @@ class ThreeDProjectCanvas {
       normals.add(normal);
     }
 
-    final offsetNormals = <List<double>>[];
+    final left = <List<double>>[];
+    final right = <List<double>>[];
     for (int i = 0; i < polyline.length; i++) {
+      double factor = 1.0;
+      List<double> n;
       if (i == 0) {
-        offsetNormals.add(normals[0]);
+        n = normals[0];
       } else if (i == polyline.length - 1) {
-        offsetNormals.add(normals.last);
+        n = normals.last;
       } else {
-        final n = _normalize([
+        n = _normalize([
           normals[i - 1][0] + normals[i][0],
           normals[i - 1][1] + normals[i][1],
           normals[i - 1][2] + normals[i][2],
         ]);
-        offsetNormals.add(n);
+        // 修正轉彎處因夾角縮小的偏置距離，最高限制在 2.0 倍 (Miter Limit)
+        final cosAlpha = _dot(n, normals[i - 1]).clamp(0.5, 1.0);
+        factor = 1.0 / cosAlpha;
       }
-    }
-
-    final left = <List<double>>[];
-    final right = <List<double>>[];
-    for (int i = 0; i < polyline.length; i++) {
-      final offset = offsetNormals[i].map((v) => v * (thickness / 2)).toList();
+      final halfThick = (drawThickness / 2) * factor;
+      final offset = n.map((v) => v * halfThick).toList();
       left.add(_add(polyline[i].toECEF(), offset));
       right.add(_sub(polyline[i].toECEF(), offset));
     }
@@ -434,7 +448,11 @@ class ThreeDProjectCanvas {
     buf.write('<g clip-path="url(#vp)">');
 
     _svgRoads(buf);
-    _svgDraw(buf);
+    
+    // 雙層導航路線：外層深琥珀橘，內層溫暖白
+    _svgDraw(buf, thicknessOverride: thickness * 1, colorOverride: '#FFFFFF');
+    _svgDraw(buf, thicknessOverride: thickness * 0.9, colorOverride: '#FFFBF8');
+    
     _svgMarker(buf);
 
     if (kDebugMode) {
@@ -453,7 +471,8 @@ class ThreeDProjectCanvas {
   void _svgRoads(StringBuffer buf) {
     if (nearbyRoads.isEmpty) return;
     final vm = _lookAt(camera.toECEF(), lookAt.toECEF());
-    buf.write('<g stroke="#666" stroke-width="3" stroke-linecap="round">');
+
+    buf.write('<g stroke="#666" stroke-width="4.0" stroke-linecap="round">');
     for (final road in nearbyRoads) {
       for (int i = 0; i < road.length - 1; i++) {
         final aV = _toViewSpace(road[i].toECEF(), vm);
@@ -475,10 +494,12 @@ class ThreeDProjectCanvas {
     buf.write('</g>');
   }
 
-  /// SVG 版 draw — 導航路線白色填充多邊形
-  void _svgDraw(StringBuffer buf) {
+  /// SVG 版 draw — 導航路線多邊形，含平分向量修正與寬度自訂
+  void _svgDraw(StringBuffer buf, {double? thicknessOverride, String? colorOverride}) {
     if (polyline.length < 2) return;
     final vm = _lookAt(camera.toECEF(), lookAt.toECEF());
+    final drawThickness = thicknessOverride ?? thickness;
+    final color = colorOverride ?? 'white';
 
     // 計算法線（與 Canvas 版邏輯相同）
     final normals = <List<double>>[];
@@ -487,30 +508,33 @@ class ThreeDProjectCanvas {
       final b = polyline[i + 1].toECEF();
       normals.add(_normalize(_cross(_normalize(_sub(b, a)), _normalize(a))));
     }
-    final offsetNormals = <List<double>>[];
-    for (int i = 0; i < polyline.length; i++) {
-      if (i == 0) {
-        offsetNormals.add(normals[0]);
-      } else if (i == polyline.length - 1) {
-        offsetNormals.add(normals.last);
-      } else {
-        offsetNormals.add(_normalize([
-          normals[i-1][0] + normals[i][0],
-          normals[i-1][1] + normals[i][1],
-          normals[i-1][2] + normals[i][2],
-        ]));
-      }
-    }
 
     final left = <List<double>>[];
     final right = <List<double>>[];
     for (int i = 0; i < polyline.length; i++) {
-      final off = offsetNormals[i].map((v) => v * (thickness / 2)).toList();
+      double factor = 1.0;
+      List<double> n;
+      if (i == 0) {
+        n = normals[0];
+      } else if (i == polyline.length - 1) {
+        n = normals.last;
+      } else {
+        n = _normalize([
+          normals[i - 1][0] + normals[i][0],
+          normals[i - 1][1] + normals[i][1],
+          normals[i - 1][2] + normals[i][2],
+        ]);
+        // 修正轉彎處因夾角縮小的偏置距離，最高限制在 2.0 倍 (Miter Limit)
+        final cosAlpha = _dot(n, normals[i - 1]).clamp(0.5, 1.0);
+        factor = 1.0 / cosAlpha;
+      }
+      final halfThick = (drawThickness / 2) * factor;
+      final off = n.map((v) => v * halfThick).toList();
       left.add(_add(polyline[i].toECEF(), off));
       right.add(_sub(polyline[i].toECEF(), off));
     }
 
-    buf.write('<g fill="white">');
+    buf.write('<g fill="$color">');
     for (int i = 0; i < polyline.length - 1; i++) {
       final pts = _projectAndClipPolygon(
         [left[i], right[i], right[i+1], left[i+1]], vm, screenSize);
@@ -522,7 +546,7 @@ class ThreeDProjectCanvas {
     buf.write('</g>');
   }
 
-  /// SVG 版 drawMarker — 紅色三角形
+  /// SVG 版 drawMarker — 雙層高質感自車箭頭
   void _svgMarker(StringBuffer buf) {
     final pos = currentPosition.toECEF();
     final look = lookAt.toECEF();
@@ -530,28 +554,33 @@ class ThreeDProjectCanvas {
     final dir = _normalize(_sub(look, pos));
     final up = _normalize(pos);
     final right = _normalize(_cross(dir, up));
-    const double sz = 12.0;
 
-    final tip3d = [pos[0]+dir[0]*sz,   pos[1]+dir[1]*sz,   pos[2]+dir[2]*sz];
-    final l3d   = [pos[0]-right[0]*sz*0.6-dir[0]*sz*0.6,
-                   pos[1]-right[1]*sz*0.6-dir[1]*sz*0.6,
-                   pos[2]-right[2]*sz*0.6-dir[2]*sz*0.6];
-    final r3d   = [pos[0]+right[0]*sz*0.6-dir[0]*sz*0.6,
-                   pos[1]+right[1]*sz*0.6-dir[1]*sz*0.6,
-                   pos[2]+right[2]*sz*0.6-dir[2]*sz*0.6];
+    void writeArrow(double sz, String color) {
+      final tip3d = [pos[0]+dir[0]*sz,   pos[1]+dir[1]*sz,   pos[2]+dir[2]*sz];
+      final l3d   = [pos[0]-right[0]*sz*0.6-dir[0]*sz*0.6,
+                     pos[1]-right[1]*sz*0.6-dir[1]*sz*0.6,
+                     pos[2]-right[2]*sz*0.6-dir[2]*sz*0.6];
+      final r3d   = [pos[0]+right[0]*sz*0.6-dir[0]*sz*0.6,
+                     pos[1]+right[1]*sz*0.6-dir[1]*sz*0.6,
+                     pos[2]+right[2]*sz*0.6-dir[2]*sz*0.6];
 
-    final tip = _project(tip3d, vm);
-    final lp  = _project(l3d, vm);
-    final rp  = _project(r3d, vm);
-    if (tip == null || lp == null || rp == null) return;
+      final tip = _project(tip3d, vm);
+      final lp  = _project(l3d, vm);
+      final rp  = _project(r3d, vm);
+      if (tip == null || lp == null || rp == null) return;
 
-    final f = _fmt;
-    buf.write(
-      '<polygon fill="red"'
-      ' points="${f(tip.dx)},${f(tip.dy)}'
-      ' ${f(lp.dx)},${f(lp.dy)}'
-      ' ${f(rp.dx)},${f(rp.dy)}"/>',
-    );
+      final f = _fmt;
+      buf.write(
+        '<polygon fill="$color"'
+        ' points="${f(tip.dx)},${f(tip.dy)}'
+        ' ${f(lp.dx)},${f(lp.dy)}'
+        ' ${f(rp.dx)},${f(rp.dy)}"/>',
+      );
+    }
+
+    // 雙層繪製：外層亮橘紅，內層溫暖白
+    writeArrow(14.0, '#FF0000');
+    writeArrow(10.0, '#FF2222');
   }
 
   /// 數字格式化：最多 2 位小數，避免 SVG 過於冗長

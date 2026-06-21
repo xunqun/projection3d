@@ -87,34 +87,38 @@ class _MyPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // 黑色底色
+    // 黑色底色 (HUD 投影透明底色，維持純黑)
     final backgroundPaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.fill;
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
-    // 1. 附近道路（灰色細線）
+    // 1. 附近道路（暖沙暗灰色線段）
     final roadPaint = Paint()
-      ..color = Colors.grey.shade600
-      ..isAntiAlias = false
-      ..strokeWidth = 1
+      ..color = const Color(0xFF9C9C9C)
+      ..isAntiAlias = true
+      ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke;
     projectCanvas.drawRoads(canvas, roadPaint);
 
-    // 2. 導航路線（白色粗帶）
-    final navPaint = Paint()
-      ..color = Colors.white
-      ..isAntiAlias = false
-      ..strokeWidth = 2
+    // 2. 導航路線（雙層繪製，塑造琥珀橘描邊效果）
+    // 2.1 外層：深琥珀橘 (#D97706)
+    final navPaintOuter = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..isAntiAlias = true
       ..style = PaintingStyle.fill;
-    projectCanvas.draw(canvas, navPaint);
+    projectCanvas.draw(canvas, navPaintOuter, thicknessOverride: projectCanvas.thickness * 1);
 
-    // 3. 目前位置（紅色三角形）
-    final markerPaint = Paint()
+    // 2.2 內層：溫暖白 (#FFFBF8)
+    final navPaintInner = Paint()
       ..color = Colors.red
-      ..isAntiAlias = false
-      ..strokeWidth = 2
+      ..isAntiAlias = true
       ..style = PaintingStyle.fill;
+    projectCanvas.draw(canvas, navPaintInner, thicknessOverride: projectCanvas.thickness * 0.9);
+
+    // 3. 目前位置（雙層箭頭已在 drawMarker 內部實現，此處傳入基準 Paint）
+    final markerPaint = Paint()
+      ..isAntiAlias = true;
     projectCanvas.drawMarker(canvas, markerPaint);
 
     // 4. Debug 序號文字
